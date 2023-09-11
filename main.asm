@@ -1,25 +1,62 @@
 .data
 char_buffer: .byte 0
-chars_counter: .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 # uppercase letters
-.space 6 # non letters gap
-.byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 # lowercase letters
-menu_msg: .asciiz "O que deseja saber?\n(1)Frequência de cada palavra (2)Frequência de cada letra (3)Sair\n"
+chars_counter:
+	.byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 # uppercase letters
+	.space 6 # non letters gap
+	.byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 # lowercase letters
+menu_msg: .asciiz "O que deseja saber?\n(1)Contagem de palavras (2)Contagem de letras (3)Frequência de cada letra (4)Sair\n"
+word_msg: .asciiz " palavras no texto\n"
 filename: .asciiz "input.txt"
 
 .text
 main:
-	jal openfile
+	jal open_file
 	move $s0, $v0 # s0 = file descriptor
 	jal menu
 	li $s1, 1
 	li $s2, 2
 	li $s3, 3
-	beq $v0, $s1, words_frequency
-	beq $v0, $s2, chars_frequency
-	beq $v0, $s3, hault
+	li $s4, 4
+	beq $v0, $s1, words_count
+	beq $v0, $s2, chars_count
+	beq $v0, $s3, chars_frequency
+	beq $v0, $s4, hault
+	jal close_file
 	j main
 	
-words_frequency:
+words_count:
+	li $t0, 1 # word counter
+	read_loop:
+		# read next chat
+		li $v0, 14
+		move $a0, $s0
+		la $a1, char_buffer
+		li $a2, 1
+		syscall
+		
+		beqz $v0, eof_wc
+		
+		lb $t1, char_buffer # $t1 = the byte that was read
+		beq $t1, 32, increment_wc
+		
+		j read_loop
+
+	increment_wc:
+		addiu $t0, $t0, 1
+		j read_loop
+		
+	eof_wc:
+		li $v0, 1
+		move $a0, $t0
+		syscall
+		
+		li $v0, 4
+		la $a0, word_msg
+		syscall
+		
+		j main
+
+chars_count:
 	j main
 
 chars_frequency:
@@ -103,10 +140,17 @@ chars_frequency:
 			bne $t0, $t1, loop_print
 		j main
 
-openfile:
+open_file:
 	li $v0, 13, # syscall code to open file
 	la $a0, filename
 	li $a1, 0 # flag mode = 0 (read)
+	syscall
+	
+	jr $ra
+	
+close_file:
+	li $v0, 16 # syscall code to close file
+	move $a0, $s0 # file descriptor
 	syscall
 	
 	jr $ra
