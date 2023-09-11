@@ -6,6 +6,7 @@ chars_counter:
 	.byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 # lowercase letters
 menu_msg: .asciiz "O que deseja saber?\n(1)Contagem de palavras (2)Contagem de letras (3)Frequência de cada letra (4)Sair\n"
 word_msg: .asciiz " palavras no texto\n"
+char_msg: .asciiz " letras no texto\n"
 filename: .asciiz "input.txt"
 
 .text
@@ -21,7 +22,6 @@ main:
 	beq $v0, $s2, chars_count
 	beq $v0, $s3, chars_frequency
 	beq $v0, $s4, hault
-	jal close_file
 	j main
 	
 words_count:
@@ -54,12 +54,50 @@ words_count:
 		la $a0, word_msg
 		syscall
 		
+		jal close_file
 		j main
 
 chars_count:
-	j main
+	li $t0, 0
+	loop_cc:
+		# read next char
+		li $v0, 14
+		move $a0, $s0
+		la $a1, char_buffer
+		li $a2, 1
+		syscall
+		
+		lb $t1, char_buffer
+		
+		beq $t1, 32, loop_cc # if space was read skip this iteration
+		beqz $v0, eof_cc
+		
+		addiu $t0, $t0, 1 # increment char counter
+		j loop_cc
+	eof_cc:	
+		addi $t0, $t0, -1
+	
+		li $v0, 1
+		move $a0, $t0
+		syscall
+		
+		li $v0, 4
+		la $a0, char_msg
+		syscall
+		
+		jal close_file
+		j main
 
 chars_frequency:
+	li $t0, 0
+	li $t1, 58
+	la $t2, chars_counter
+	loop_clear:
+		sb $zero, 0($t2)
+		addi $t0, $t0, 1
+		addi $t2, $t2, 1
+		bne $t0, $t1, loop_clear
+
 	loop:
 		# read next char
 		li $v0, 14 # syscall code to read from file
@@ -138,6 +176,8 @@ chars_frequency:
 			
 			addi, $t0, $t0, 1
 			bne $t0, $t1, loop_print
+		
+		jal close_file
 		j main
 
 open_file:
